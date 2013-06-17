@@ -37,7 +37,60 @@ class ControllerCommonColumnLeft extends Controller {
 		}
 
 		$module_data = array();
+                
+                if (isset($this->request->get['path'])) {
+			$parts = explode('_', (string)$this->request->get['path']);
+		} else {
+			$parts = array();
+		}
 		
+		if (isset($parts[0])) {
+			$this->data['category_id'] = $parts[0];
+		} else {
+			$this->data['category_id'] = 0;
+		}
+		
+		if (isset($parts[1])) {
+			$this->data['child_id'] = $parts[1];
+		} else {
+			$this->data['child_id'] = 0;
+		}
+                
+		$this->data['categories'] = array();
+
+		$categories = $this->model_catalog_category->getCategories(0);
+		
+		foreach ($categories as $category) {
+			if ($category['top']) {
+				// Level 2
+				$children_data = array();
+				
+				$children = $this->model_catalog_category->getCategories($category['category_id']);
+				
+				foreach ($children as $child) {
+					$data = array(
+						'filter_category_id'  => $child['category_id'],
+						'filter_sub_category' => true
+					);
+					
+					$product_total = $this->model_catalog_product->getTotalProducts($data);
+									
+					$children_data[] = array(
+						'name'  => $child['name'] . ($this->config->get('config_product_count') ? ' (' . $product_total . ')' : ''),
+						'href'  => $this->url->link('product/category', 'path=' . $category['category_id'] . '_' . $child['category_id'])
+					);						
+				}
+				
+				// Level 1
+				$this->data['categories'][] = array(
+					'name'     => $category['name'],
+					'children' => $children_data,
+					'column'   => $category['column'] ? $category['column'] : 1,
+					'href'     => $this->url->link('product/category', 'path=' . $category['category_id'])
+				);
+			}
+		}
+                
 		$this->load->model('setting/extension');
 		
 		$extensions = $this->model_setting_extension->getExtensions('module');		
